@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <!-- Editor dark background used as the window/splash background -->
+    <color name="editor_background">#FF1E1E1E</color>
+    <color name="brand_primary">#FF4EC9B0</color>
+    <color name="ic_launcher_background">#FF1E1E1E</color>
+</resources>

@@ -1,0 +1,103 @@
+name: Android CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        id: assemble
+        run: |
+          chmod +x ./gradlew
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --console=plain 2>&1 | tee /tmp/build.log
+
+      - name: Summarize build errors
+        if: failure()
+        run: |
+          echo "## Gradle build failed" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^e: |error:|FAILURE:|What went wrong|Could not|Unresolved|Duplicate|> Task .*FAILED|Caused by" /tmp/build.log | head -100 >> "$GITHUB_STEP_SUMMARY" || tail -120 /tmp/build.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment build errors on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let log = '';
+            try { log = fs.readFileSync('/tmp/build.log', 'utf8'); } catch (e) {}
+            const lines = log.split('\n');
+            const errRe = /^e: |error:|FAILURE:|What went wrong|Could not |Unresolved |Duplicate |> Task .*FAILED|Caused by|issue was found|requires|minCompileSdk|minSdk|dependency|Dependency|compileSdk|AGP|Android Gradle plugin/i;
+            let picked = lines.filter(l => errRe.test(l));
+            if (picked.length === 0) picked = lines.slice(-150);
+            const body = "### ❌ assembleDebug failed\n```\n" +
+              picked.slice(0, 120).join('\n').slice(0, 60000) + "\n```";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/build.log
+
+  # Native Rust terminal core (optional — the app ships a Kotlin fallback).
+  # Kept separate so a native-build hiccup never blocks the APK.
+  native:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Android targets + cargo-ndk
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+          cargo install cargo-ndk
+      - name: Set up Android SDK (for NDK)
+        uses: android-actions/setup-android@v3
+      - name: Install NDK
+        run: sdkmanager "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Build native core
+        run: cd rust-terminal && cargo ndk -o ../app/src/main/jniLibs -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build --release

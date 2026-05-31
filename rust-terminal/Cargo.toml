@@ -1,0 +1,25 @@
+[package]
+name = "andcodedit_terminal"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "andcodedit_terminal"
+crate-type = ["cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+
+[features]
+cli = ["uniffi/cli"]
+
+[dependencies]
+uniffi = "0.28"
+portable-pty = "0.8"
+thiserror = "1"
+log = "0.4"
+
+[build-dependencies]
+uniffi = { version = "0.28", features = ["build"] }

@@ -28,5 +28,29 @@ fun AppNavigation(navController: NavHostController, appStateViewModel: AppStateV
         composable("ai") {
             AIChatScreen(navController = navController, appStateViewModel = appStateViewModel)
         }
+        composable("settings") {
+            com.andcodedit.ui.screens.SettingsScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
+        composable("monaco") {
+            com.andcodedit.ui.screens.MonacoEditorScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
+        composable("runner") {
+            com.andcodedit.ui.screens.RunnerScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
+        composable("toolchains") {
+            com.andcodedit.ui.screens.ToolchainScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
     }
 }

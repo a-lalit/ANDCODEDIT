@@ -31,7 +31,10 @@ data class EditorTab(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditorScreen(navController: NavController) {
+fun EditorScreen(
+    navController: NavController,
+    appStateViewModel: com.andcodedit.viewmodel.AppStateViewModel
+) {
     val context = LocalContext.current
     val tabs = remember { mutableStateListOf<EditorTab>() }
     val currentTabIndex = remember { mutableStateOf(0) }
@@ -168,7 +171,7 @@ class DexParserService {
     }
 }"""
 
-    val sampleSmali = "".class public Lcom/andcodedit/dex/DexParserService;
+    val sampleSmali = """.class public Lcom/andcodedit/dex/DexParserService;
 .super Ljava/lang/Object;
 
 # Sample Smali from DEX Mode - edit here in professional editor

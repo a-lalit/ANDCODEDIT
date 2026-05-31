@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Base application theme. The real UI colours are supplied by the Compose
+      ANDCODEDITTheme; this XML theme only controls the window/splash chrome
+      shown before Compose draws its first frame.
+    -->
+    <style name="Theme.ANDCODEDIT" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/editor_background</item>
+        <item name="android:statusBarColor">@color/editor_background</item>
+        <item name="android:navigationBarColor">@color/editor_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -1,7 +1,8 @@
 package com.andcodedit.language
 
-import io.github.rosemoe.sora.lang.diagnostic.Diagnostic
+import io.github.rosemoe.sora.lang.diagnostic.DiagnosticDetail
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticRegion
+import io.github.rosemoe.sora.lang.diagnostic.DiagnosticsContainer
 import io.github.rosemoe.sora.widget.CodeEditor
 import java.util.regex.Pattern
 
@@ -20,30 +21,49 @@ import java.util.regex.Pattern
 object DiagnosticsManager {
 
     data class ParsedDiagnostic(
+        /** 1-based line number as emitted by compilers. */
         val line: Int,
+        /** 1-based column. */
         val column: Int,
         val length: Int = 1,
         val message: String,
-        val severity: Int = DiagnosticRegion.SEVERITY_ERROR
+        val severity: Short = DiagnosticRegion.SEVERITY_ERROR
     )
 
     /**
-     * Apply diagnostics to a Sora CodeEditor.
-     * Clears previous diagnostics first.
+     * Apply diagnostics to a Sora [CodeEditor].
+     *
+     * Sora's [DiagnosticRegion] is character-offset based, so we convert the
+     * compiler's 1-based (line, column) into absolute indices via the editor's
+     * [io.github.rosemoe.sora.text.Content]. Out-of-range entries are skipped.
      */
     fun applyDiagnostics(editor: CodeEditor, diagnostics: List<ParsedDiagnostic>) {
-        val soraDiagnostics = diagnostics.map { diag ->
-            Diagnostic(
+        val content = editor.text
+        val lineCount = content.lineCount
+        val container = DiagnosticsContainer()
+
+        diagnostics.forEach { diag ->
+            val lineIdx = (diag.line - 1).coerceIn(0, (lineCount - 1).coerceAtLeast(0))
+            val colCount = content.getColumnCount(lineIdx)
+            val colIdx = (diag.column - 1).coerceIn(0, colCount)
+            val start = try {
+                content.getCharIndex(lineIdx, colIdx)
+            } catch (e: Exception) {
+                return@forEach
+            }
+            val total = content.length()
+            val end = (start + diag.length).coerceAtMost(total)
+            container.addDiagnostic(
                 DiagnosticRegion(
-                    diag.line,
-                    diag.column,
-                    diag.length,
-                    diag.severity
-                ),
-                diag.message
+                    start,
+                    end.coerceAtLeast(start + 1).coerceAtMost(total),
+                    diag.severity,
+                    0L,
+                    DiagnosticDetail(diag.message, null, emptyList(), null)
+                )
             )
         }
-        editor.setDiagnostics(soraDiagnostics)
+        editor.setDiagnostics(container)
     }
 
     /**
