@@ -17,10 +17,20 @@ Most Android code editors are either too basic or feel like compromised web port
 
 | Feature                    | Description                                                                 | Why It Matters |
 |---------------------------|-----------------------------------------------------------------------------|----------------|
-| **DEX Mode**              | View, edit, and reassemble DEX bytecode directly. Smali support + patching. | True low-level Android development & reverse engineering on-device |
+| **Monaco Editor**         | The full VS Code editor engine in a WebView, with a two-way Kotlin↔JS bridge (language, format, undo/redo, cursor). Offline via bundled `vs/`, CDN fallback otherwise. | Real desktop-grade editing on Android |
+| **30+ Language Runner**   | Edit & run 30+ languages (Python, JS/TS, C/C++, Go, Rust, Java, Kotlin, Swift, …) with streamed stdout/stderr and exit codes | Execute code on-device, not just edit it |
+| **Toolchain Manager**     | Provisions compilers/interpreters at runtime via a Termux/proot bootstrap (`pkg`/`apt`), with availability checks + one-tap install | 25+ toolchains without an impossible all-in-one APK |
+| **DEX Mode**              | View, edit, and reassemble DEX bytecode directly. Smali support + patching (dexlib2). | True low-level Android development & reverse engineering on-device |
 | **Android 16 Desktop Mode** | Full native support for Android 16's desktop/windowing features            | Real productivity on tablets, foldables, and external displays |
-| **Full Terminal**         | Interactive terminal connected to the real Linux shell (PTY)                | Run gradle, adb, vim, python, htop — everything you need |
-| **AI Agents** (Coming)    | Context-aware agents that understand your code, DEX, and terminal history   | Next-level assistance without leaving the editor |
+| **Full Terminal**         | Interactive terminal connected to the real shell (Kotlin ProcessBuilder today, Rust `portable-pty` via UniFFI next) | Run gradle, adb, python, git — everything you need |
+| **AI Agents**             | RAG over project knowledge + tool-calling into the terminal                 | Context-aware assistance without leaving the editor |
+
+> **Why toolchains aren't bundled in the APK.** A single APK can't physically
+> contain 30 multi-gigabyte toolchains (GCC, JDK, Python, Node, Rust, …) within
+> Play's size limits. Like Termux/Acode, ANDCODEDIT provisions them **on-device,
+> on demand**: it shells into a Termux (or proot) userland and installs only what
+> you use. The editor, runner UI, and language registry ship in the APK; the
+> compilers are fetched at runtime. See `docs/build-and-setup.md`.
 
 ---
 
