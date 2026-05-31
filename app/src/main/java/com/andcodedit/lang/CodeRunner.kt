@@ -153,25 +153,14 @@ class CodeRunner {
 
     /** Spawns `<shell> -c <cmd>` with stderr kept separate, or null on failure. */
     private fun newShellProcess(cmd: String, workDir: File): Process? = try {
-        ProcessBuilder(resolveShell(), "-c", cmd)
-            .directory(workDir)
-            .redirectErrorStream(false)
-            .start()
+        ShellEnvironment.apply(
+            ProcessBuilder(ShellEnvironment.resolveShell(), "-c", cmd)
+                .directory(workDir)
+                .redirectErrorStream(false),
+            tmpDir = workDir
+        ).start()
     } catch (_: Exception) {
         null
-    }
-
-    /** Resolves a usable shell, defensively falling back to bare "sh". */
-    private fun resolveShell(): String {
-        val candidates = listOf(
-            "/data/data/com.termux/files/usr/bin/sh",
-            "/system/bin/sh",
-            "/bin/sh"
-        )
-        for (c in candidates) {
-            if (File(c).exists()) return c
-        }
-        return "sh"
     }
 
     /** Minimal single-quote shell escaping so paths with spaces are safe. */

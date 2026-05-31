@@ -1,7 +1,5 @@
 package com.andcodedit.lang
 
-import java.io.File
-
 /**
  * RuntimeManager — checks which language toolchains are actually available on
  * the device and tells the user how to install the ones that are missing.
@@ -48,26 +46,15 @@ object RuntimeManager {
 
     /** Returns true if `command -v <binary>` succeeds on the resolved shell. */
     private fun commandExists(binary: String): Boolean = try {
-        val process = ProcessBuilder(resolveShell(), "-c", "command -v ${shellQuote(binary)}")
-            .redirectErrorStream(true)
-            .start()
+        val process = ShellEnvironment.apply(
+            ProcessBuilder(ShellEnvironment.resolveShell(), "-c", "command -v ${shellQuote(binary)}")
+                .redirectErrorStream(true)
+        ).start()
         val output = process.inputStream.bufferedReader().readText().trim()
         val code = process.waitFor()
         code == 0 && output.isNotEmpty()
     } catch (_: Exception) {
         false
-    }
-
-    private fun resolveShell(): String {
-        val candidates = listOf(
-            "/data/data/com.termux/files/usr/bin/sh",
-            "/system/bin/sh",
-            "/bin/sh"
-        )
-        for (c in candidates) {
-            if (File(c).exists()) return c
-        }
-        return "sh"
     }
 
     private fun shellQuote(s: String): String = "'" + s.replace("'", "'\\''") + "'"
