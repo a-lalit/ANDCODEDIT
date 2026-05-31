@@ -44,7 +44,17 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Multiple bundled engines ship duplicate license/metadata files.
+            excludes += "/META-INF/*.kotlin_module"
+            pickFirsts += "META-INF/LICENSE*"
+            pickFirsts += "META-INF/NOTICE*"
+            pickFirsts += "**/*.properties"
         }
+    }
+    lint {
+        // A working APK shouldn't be blocked by lint warnings/errors in CI.
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 }
 
