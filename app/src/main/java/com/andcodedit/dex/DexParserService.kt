@@ -14,7 +14,7 @@ import java.io.File
  * Smali view.
  *
  * Reassembly (Smali -> DEX -> APK -> re-sign) is intentionally a documented stub
- * here; the full pipeline uses `com.android.tools.smali:smali` to assemble and
+ * here; the full pipeline uses `org.smali:smali` to assemble and
  * dexlib2 to rebuild, then zip-replace + apksigner.
  */
 class DexParserService {
@@ -65,7 +65,7 @@ class DexParserService {
 
     /**
      * Stub for the reassembly pipeline. Production flow:
-     *  1. Assemble edited Smali -> DEX with com.android.tools.smali:smali.
+     *  1. Assemble edited Smali -> DEX with org.smali:smali.
      *  2. Rebuild a DexFile / merge with dexlib2.
      *  3. Replace classes.dex inside the APK (zip).
      *  4. Re-sign with apksigner.
