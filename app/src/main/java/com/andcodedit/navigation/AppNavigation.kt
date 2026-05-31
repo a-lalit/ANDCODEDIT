@@ -46,5 +46,11 @@ fun AppNavigation(navController: NavHostController, appStateViewModel: AppStateV
                 appStateViewModel = appStateViewModel
             )
         }
+        composable("toolchains") {
+            com.andcodedit.ui.screens.ToolchainScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
     }
 }
