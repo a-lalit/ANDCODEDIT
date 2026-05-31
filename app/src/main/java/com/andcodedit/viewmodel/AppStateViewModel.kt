@@ -59,6 +59,13 @@ class AppStateViewModel(
     private val _terminalHeight = MutableStateFlow(savedStateHandle.get<Float>("terminalHeight") ?: 260f)
     val terminalHeight: StateFlow<Float> = _terminalHeight.asStateFlow()
 
+    // Terminal preferences (surfaced in SettingsScreen)
+    private val _terminalFontSize = MutableStateFlow(savedStateHandle.get<Float>("terminalFontSize") ?: 14f)
+    val terminalFontSize: StateFlow<Float> = _terminalFontSize.asStateFlow()
+
+    private val _terminalShell = MutableStateFlow(savedStateHandle.get<String>("terminalShell") ?: "/system/bin/sh")
+    val terminalShell: StateFlow<String> = _terminalShell.asStateFlow()
+
     init {
         // Initialize default terminal tab
         if (_terminalSessions.value.isEmpty()) {
@@ -81,6 +88,20 @@ class AppStateViewModel(
         viewModelScope.launch {
             _terminalHeight.collect { savedStateHandle["terminalHeight"] = it }
         }
+        viewModelScope.launch {
+            _terminalFontSize.collect { savedStateHandle["terminalFontSize"] = it }
+        }
+        viewModelScope.launch {
+            _terminalShell.collect { savedStateHandle["terminalShell"] = it }
+        }
+    }
+
+    fun updateTerminalFontSize(size: Float) {
+        _terminalFontSize.value = size.coerceIn(8f, 32f)
+    }
+
+    fun updateTerminalShell(shell: String) {
+        _terminalShell.value = shell
     }
 
     // Editor functions
