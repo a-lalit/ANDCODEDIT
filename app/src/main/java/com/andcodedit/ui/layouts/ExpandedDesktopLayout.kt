@@ -32,6 +32,7 @@ import com.andcodedit.ui.components.ResizableVerticalPane
 @Composable
 fun ExpandedDesktopLayout(
     modifier: Modifier = Modifier,
+    appStateViewModel: com.andcodedit.viewmodel.AppStateViewModel? = null,
     onClose: () -> Unit = {},
     onOpenSettings: () -> Unit = {}
 ) {

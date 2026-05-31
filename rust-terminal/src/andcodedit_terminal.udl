@@ -1,0 +1,29 @@
+namespace andcodedit_terminal {
+    [Throws=TerminalError]
+    TerminalSession create_terminal_session(TerminalConfig config, TerminalOutputCallback callback);
+};
+
+dictionary TerminalConfig {
+    u16 rows;
+    u16 cols;
+    string shell;
+};
+
+[Error]
+interface TerminalError {
+    Spawn(string message);
+    Io(string message);
+    Pty(string message);
+};
+
+callback interface TerminalOutputCallback {
+    void on_output(sequence<u8> data);
+};
+
+interface TerminalSession {
+    [Throws=TerminalError]
+    void write_input(sequence<u8> data);
+
+    [Throws=TerminalError]
+    void resize(u16 rows, u16 cols);
+};

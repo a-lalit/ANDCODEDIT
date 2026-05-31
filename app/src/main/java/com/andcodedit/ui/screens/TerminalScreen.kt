@@ -1,251 +1,153 @@
 package com.andcodedit.ui.screens
 
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.andcodedit.terminal.TerminalGrid
-import com.andcodedit.terminal.TerminalSessionFactory
-import com.andcodedit.terminal.TerminalView
+import com.andcodedit.terminal.TerminalSession
 import com.andcodedit.viewmodel.AppStateViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TerminalScreen(navController: NavController, appStateViewModel: AppStateViewModel) {
-    val focusRequester = remember { FocusRequester() }
-    val sessions = appStateViewModel.terminalSessions.collectAsState().value
-    val grids = appStateViewModel.terminalGrids.collectAsState().value
-    val currentTab = appStateViewModel.currentTerminalTab.collectAsState().value
-
-    // Ensure at least one tab
-    LaunchedEffect(sessions.size) {
-        if (sessions.isEmpty()) {
-            appStateViewModel.createNewTerminalTab()
-        }
-    }
-
-    val currentSession = sessions.getOrNull(currentTab)
-    val currentGrid = grids.getOrNull(currentTab)
-
-    var showSettings by remember { mutableStateOf(false) }
-    var showContextMenu by remember { mutableStateOf(false) }
-    var contextMenuPosition by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+fun TerminalScreen(navController: NavHostController, appStateViewModel: AppStateViewModel) {
+    val sessions by appStateViewModel.terminalSessions.collectAsState()
+    val grids by appStateViewModel.terminalGrids.collectAsState()
+    val currentTab by appStateViewModel.currentTerminalTab.collectAsState()
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Terminal - Tab ${currentTab + 1} / ${sessions.size}") },
+                title = { Text("Terminal") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Text("←")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { appStateViewModel.createNewTerminalTab() }) {
-                        Text("+")
-                    }
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Filled.Add, contentDescription = "New Tab")
                     }
                 }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Terminal Tabs
-            if (sessions.size > 1) {
-                ScrollableTabRow(selectedTabIndex = currentTab) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(Color(0xFF1E1E1E))
+        ) {
+            if (sessions.isNotEmpty()) {
+                ScrollableTabRow(
+                    selectedTabIndex = currentTab.coerceIn(0, maxOf(0, sessions.size - 1)),
+                    containerColor = Color(0xFF2D2D2D),
+                    contentColor = Color.White
+                ) {
                     sessions.forEachIndexed { index, _ ->
                         Tab(
                             selected = index == currentTab,
                             onClick = { appStateViewModel.switchTerminalTab(index) },
-                            text = { Text("Tab ${index + 1}") }
+                            text = { Text("sh ${index + 1}") }
                         )
                     }
                 }
             }
 
-            // Main Terminal View with mouse scroll and context menu
-            if (currentGrid != null && currentSession != null) {
+            val currentGrid = grids.getOrNull(currentTab)
+            val currentSession = sessions.getOrNull(currentTab)
+
+            if (currentGrid != null) {
                 TerminalView(
                     grid = currentGrid,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .focusable()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    focusRequester.requestFocus()
-                                },
-                                onLongPress = { offset ->
-                                    contextMenuPosition = offset
-                                    showContextMenu = true
-                                }
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            // Mouse wheel scroll support
-                            detectDragGestures { change, dragAmount ->
-                                if (dragAmount.y != 0f) {
-                                    currentGrid.scrollBy(-dragAmount.y.toInt() / 20) // Scroll speed
-                                }
-                            }
-                        }
-                        .onKeyEvent { keyEvent ->
-                            if (keyEvent.type == KeyEventType.KeyDown) {
-                                val char = keyEvent.utf16CodePoint?.toChar()
-                                when {
-                                    keyEvent.key == Key.Enter -> {
-                                        currentSession.writeInput("\r".toByteArray())
-                                        true
-                                    }
-                                    keyEvent.key == Key.Backspace -> {
-                                        currentSession.writeInput(byteArrayOf(0x7f))
-                                        true
-                                    }
-                                    keyEvent.key == Key.Tab -> {
-                                        currentSession.writeInput("\t".toByteArray())
-                                        true
-                                    }
-                                    keyEvent.key == Key.DirectionUp -> {
-                                        currentSession.writeInput("\u001b[A".toByteArray())
-                                        true
-                                    }
-                                    keyEvent.key == Key.DirectionDown -> {
-                                        currentSession.writeInput("\u001b[B".toByteArray())
-                                        true
-                                    }
-                                    keyEvent.key == Key.DirectionRight -> {
-                                        currentSession.writeInput("\u001b[C".toByteArray())
-                                        true
-                                    }
-                                    keyEvent.key == Key.DirectionLeft -> {
-                                        currentSession.writeInput("\u001b[D".toByteArray())
-                                        true
-                                    }
-                                    char != null && !char.isISOControl() -> {
-                                        currentSession.writeInput(char.toString().toByteArray())
-                                        true
-                                    }
-                                    else -> false
-                                }
-                            } else {
-                                false
-                            }
-                        }
+                    session = currentSession,
+                    scope = scope
                 )
-
-                // Context Menu
-                DropdownMenu(
-                    expanded = showContextMenu,
-                    onDismissRequest = { showContextMenu = false },
-                    offset = androidx.compose.ui.unit.IntOffset(contextMenuPosition.x.toInt(), contextMenuPosition.y.toInt())
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Copy") },
-                        onClick = {
-                            // TODO: Implement copy from grid selection if supported
-                            showContextMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Paste") },
-                        onClick = {
-                            // TODO: Paste from clipboard
-                            showContextMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Clear") },
-                        onClick = {
-                            currentGrid.clear()
-                            showContextMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Close Tab") },
-                        onClick = {
-                            appStateViewModel.closeTerminalTab(currentTab)
-                            showContextMenu = false
-                        }
-                    )
-                }
-
-                // Helper input bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    var inputText by remember { mutableStateOf("") }
-
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Type command and press Send") },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Send
-                        ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                            onSend = {
-                                if (inputText.isNotBlank()) {
-                                    currentSession.writeInput("$inputText\r".toByteArray())
-                                    inputText = ""
-                                }
-                            }
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(onClick = {
-                        if (inputText.isNotBlank()) {
-                            currentSession.writeInput("$inputText\r".toByteArray())
-                            inputText = ""
-                        }
-                    }) {
-                        Text("Send")
-                    }
-                }
-            } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No terminal session. Creating new one...")
-                }
             }
         }
     }
+}
 
-    // Settings Dialog
-    if (showSettings) {
-        AlertDialog(
-            onDismissRequest = { showSettings = false },
-            title = { Text("Terminal Settings") },
-            text = {
-                Column {
-                    Text("Shell: /system/bin/sh (default)")
-                    Text("TERM: xterm-256color")
-                    Text("Font Size: 14sp (adjust in code)")
-                    // Add more settings like font size slider if needed
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSettings = false }) {
-                    Text("Close")
-                }
+@Composable
+fun TerminalView(
+    grid: TerminalGrid,
+    session: TerminalSession?,
+    scope: CoroutineScope
+) {
+    val outputText by grid.outputFlow.collectAsState()
+    val listState = rememberLazyListState()
+    var inputValue by remember { mutableStateOf(TextFieldValue("")) }
+
+    val lines = remember(outputText) { outputText.lines() }
+
+    // Auto-scroll to bottom on new output.
+    LaunchedEffect(lines.size) {
+        if (lines.isNotEmpty()) {
+            listState.animateScrollToItem(lines.lastIndex)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) {
+            items(lines) { line ->
+                Text(
+                    text = line,
+                    color = Color(0xFFD4D4D4),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                )
             }
-        )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$ ", color = Color(0xFF4EC9B0), fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+            BasicTextField(
+                value = inputValue,
+                onValueChange = { inputValue = it },
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                ),
+                modifier = Modifier.weight(1f),
+                cursorBrush = SolidColor(Color.White),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        val cmd = inputValue.text
+                        scope.launch {
+                            session?.writeInput((cmd + "\n").toByteArray())
+                        }
+                        inputValue = TextFieldValue("")
+                    }
+                )
+            )
+        }
     }
 }

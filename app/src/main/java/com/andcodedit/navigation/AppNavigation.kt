@@ -28,5 +28,11 @@ fun AppNavigation(navController: NavHostController, appStateViewModel: AppStateV
         composable("ai") {
             AIChatScreen(navController = navController, appStateViewModel = appStateViewModel)
         }
+        composable("settings") {
+            com.andcodedit.ui.screens.SettingsScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
     }
 }
