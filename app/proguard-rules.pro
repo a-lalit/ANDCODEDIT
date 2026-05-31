@@ -25,6 +25,18 @@
 -keep class io.github.rosemoe.** { *; }
 -dontwarn io.github.rosemoe.**
 
+# In-process language engines (reflection / dynamic class loading)
+-keep class org.mozilla.javascript.** { *; }
+-dontwarn org.mozilla.javascript.**
+-keep class org.python.** { *; }
+-dontwarn org.python.**
+-keep class org.luaj.** { *; }
+-dontwarn org.luaj.**
+-keep class bsh.** { *; }
+-dontwarn bsh.**
+# Our Rhino-exposed console bridge is reached via reflection.
+-keep class com.andcodedit.lang.InProcessRunner$JsConsole { *; }
+
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**

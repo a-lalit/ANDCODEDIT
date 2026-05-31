@@ -97,6 +97,13 @@ dependencies {
     // Terminal (PTY will be in rust-terminal module)
     // For now, we use a placeholder. Real implementation uses Rust UniFFI.
 
+    // In-process language engines — these run INSIDE the app (bundled in the
+    // APK, no external toolchain needed): JavaScript, Python 2.7, Lua, BeanShell.
+    implementation("org.mozilla:rhino:1.7.15")            // JavaScript
+    implementation("org.luaj:luaj-jse:3.0.1")             // Lua 5.2
+    implementation("org.python:jython-standalone:2.7.3")  // Python 2.7
+    implementation("org.apache-extras.beanshell:bsh:2.0b6") // Java-like scripting
+
     // Cloud / Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")

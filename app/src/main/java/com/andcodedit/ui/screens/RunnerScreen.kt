@@ -21,15 +21,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.andcodedit.lang.CodeRunner
+import com.andcodedit.lang.InProcessRunner
 import com.andcodedit.lang.Language
 import com.andcodedit.lang.LanguageCategory
 import com.andcodedit.lang.LanguageRegistry
 import com.andcodedit.lang.RunEvent
 import com.andcodedit.lang.RuntimeManager
 import com.andcodedit.viewmodel.AppStateViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** A single line shown in the output console, tagged with how it should render. */
@@ -68,6 +71,7 @@ private fun sampleFor(language: Language): String = when (language.id) {
     "ocaml" -> "print_endline \"Hello, World!\"\n"
     "dart" -> "void main() {\n    print(\"Hello, World!\");\n}\n"
     "bash" -> "echo \"Hello, World!\"\n"
+    "beanshell" -> "print(\"Hello, World!\");\n"
     "sql" -> "SELECT 'Hello, World!';\n"
     else -> when (language.category) {
         LanguageCategory.Shell -> "echo \"Hello, World!\"\n"
@@ -93,11 +97,19 @@ fun RunnerScreen(navController: NavController, appStateViewModel: AppStateViewMo
     var runJob by remember { mutableStateOf<Job?>(null) }
 
     // Availability re-checked whenever the selected language changes.
+    // In-process languages (Rhino/Jython/LuaJ/BeanShell) are always available —
+    // their interpreters are bundled in the APK, so no toolchain is required.
+    val inProcess = InProcessRunner.canRun(selectedLanguage.id)
     var available by remember { mutableStateOf(true) }
     var missing by remember { mutableStateOf<List<String>>(emptyList()) }
     LaunchedEffect(selectedLanguage.id) {
-        available = RuntimeManager.isAvailable(selectedLanguage)
-        missing = RuntimeManager.missingBinaries(selectedLanguage)
+        if (inProcess) {
+            available = true
+            missing = emptyList()
+        } else {
+            available = RuntimeManager.isAvailable(selectedLanguage)
+            missing = RuntimeManager.missingBinaries(selectedLanguage)
+        }
     }
 
     val outputScroll = rememberScrollState()
@@ -117,6 +129,33 @@ fun RunnerScreen(navController: NavController, appStateViewModel: AppStateViewMo
         if (isRunning) return
         output.clear()
         isRunning = true
+
+        // In-process languages execute on a bundled interpreter — no shell.
+        if (InProcessRunner.canRun(selectedLanguage.id)) {
+            output.add(ConsoleLine("▶ ${selectedLanguage.displayName} (in-process, bundled)", ConsoleLine.Kind.System))
+            runJob = scope.launch {
+                val result = withContext(Dispatchers.Default) {
+                    InProcessRunner.run(selectedLanguage.id, code)
+                }
+                result.output.lineSequence().forEach {
+                    if (it.isNotEmpty()) output.add(ConsoleLine(it, ConsoleLine.Kind.Stdout))
+                }
+                if (result.error.isNotBlank()) {
+                    result.error.lineSequence().forEach {
+                        if (it.isNotEmpty()) output.add(ConsoleLine(it, ConsoleLine.Kind.Stderr))
+                    }
+                }
+                output.add(
+                    ConsoleLine(
+                        "[${if (result.ok) "ok" else "error"} • ${result.ms} ms]",
+                        ConsoleLine.Kind.System
+                    )
+                )
+                isRunning = false
+            }
+            return
+        }
+
         val workDir = File(context.cacheDir, "runner").apply { mkdirs() }
         runJob = scope.launch {
             runner.run(selectedLanguage, code, workDir, this)
@@ -224,8 +263,25 @@ fun RunnerScreen(navController: NavController, appStateViewModel: AppStateViewMo
                 }
             }
 
+            // ---- Bundled (in-process) indicator ----
+            if (inProcess) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Runs in-process — interpreter bundled in the app, no toolchain needed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
             // ---- Availability banner ----
-            if (!available) {
+            if (!inProcess && !available) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer

@@ -13,6 +13,19 @@ object LanguageRegistry {
     val all: List<Language> = listOf(
         // ---- Scripting ----
         Language(
+            id = "beanshell",
+            displayName = "BeanShell (bundled)",
+            fileExtension = "bsh",
+            monacoId = "java",
+            category = LanguageCategory.JVM,
+            interpreter = null,
+            compileTemplate = null,
+            // Runs in-process via the bundled bsh interpreter; no shell command.
+            runTemplate = "",
+            requiredBinaries = emptyList(),
+            installHint = "Bundled in the app — no installation required."
+        ),
+        Language(
             id = "python",
             displayName = "Python",
             fileExtension = "py",
