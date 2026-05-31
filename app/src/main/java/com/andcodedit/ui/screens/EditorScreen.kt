@@ -171,7 +171,7 @@ class DexParserService {
     }
 }"""
 
-    val sampleSmali = "".class public Lcom/andcodedit/dex/DexParserService;
+    val sampleSmali = """.class public Lcom/andcodedit/dex/DexParserService;
 .super Ljava/lang/Object;
 
 # Sample Smali from DEX Mode - edit here in professional editor
