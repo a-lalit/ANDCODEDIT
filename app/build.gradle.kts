@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
 
@@ -40,9 +41,6 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.7.0"
-    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -81,16 +79,16 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
-    // DEX Mode
-    implementation("com.google.android.tools:dx:1.7.0")
-    implementation("org.smali:dexlib2:3.0.5")
-    // Smali
-    implementation("org.smali:smali:3.0.5")
+    // DEX Mode — smali/dexlib2 (org.smali 2.5.2 is the latest on Maven Central;
+    // package namespace is org.jf.dexlib2 / org.jf.* )
+    implementation("org.smali:dexlib2:2.5.2")
+    implementation("org.smali:smali:2.5.2")
+    implementation("org.smali:baksmali:2.5.2")
 
-    // Editor Engine - Sora Editor for professional code editing
-    implementation("io.github.Rosemoe.sora-editor:editor:0.24.5")
-    implementation("io.github.Rosemoe.sora-editor:language-java:0.24.5")
-    implementation("io.github.Rosemoe.sora-editor:language-textmate:0.24.5")
+    // Editor Engine — Sora Editor for professional code editing
+    implementation("io.github.Rosemoe.sora-editor:editor:0.23.5")
+    implementation("io.github.Rosemoe.sora-editor:language-java:0.23.5")
+    implementation("io.github.Rosemoe.sora-editor:language-textmate:0.23.5")
 
     // Git
     // Using JGit for now, will add libgit2 via UniFFI later

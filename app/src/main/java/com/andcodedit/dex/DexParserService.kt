@@ -1,11 +1,11 @@
 package com.andcodedit.dex
 
 import androidx.compose.runtime.mutableStateOf
-import com.android.tools.smali.dexlib2.DexFileFactory
-import com.android.tools.smali.dexlib2.Opcodes
-import com.android.tools.smali.dexlib2.iface.ClassDef
-import com.android.tools.smali.dexlib2.iface.DexFile
-import com.android.tools.smali.dexlib2.iface.Method
+import org.jf.dexlib2.DexFileFactory
+import org.jf.dexlib2.Opcodes
+import org.jf.dexlib2.iface.ClassDef
+import org.jf.dexlib2.iface.DexFile
+import org.jf.dexlib2.iface.Method
 import java.io.File
 
 /**
