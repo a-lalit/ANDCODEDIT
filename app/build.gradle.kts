@@ -108,11 +108,13 @@ dependencies {
     // For now, we use a placeholder. Real implementation uses Rust UniFFI.
 
     // In-process language engines — these run INSIDE the app (bundled in the
-    // APK, no external toolchain needed): JavaScript, Python 2.7, Lua, BeanShell.
-    implementation("org.mozilla:rhino:1.7.15")            // JavaScript
-    implementation("org.luaj:luaj-jse:3.0.1")             // Lua 5.2
-    implementation("org.python:jython-standalone:2.7.3")  // Python 2.7
-    implementation("org.apache-extras.beanshell:bsh:2.0b6") // Java-like scripting
+    // APK, no external toolchain needed). Limited to PURE INTERPRETERS that emit
+    // no JVM bytecode, because Android/ART can only load DEX, not runtime .class
+    // files. That rules out Jython, JRuby and Groovy (all generate bytecode);
+    // those languages run via the Termux toolchain instead.
+    implementation("org.mozilla:rhino:1.7.15")              // JavaScript (interpreted, optimizationLevel=-1)
+    implementation("org.luaj:luaj-jse:3.0.1")               // Lua 5.2 (pure interpreter)
+    implementation("org.apache-extras.beanshell:bsh:2.0b6") // Java-like (AST interpreter)
 
     // Cloud / Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

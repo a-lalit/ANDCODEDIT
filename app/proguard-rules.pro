@@ -28,8 +28,6 @@
 # In-process language engines (reflection / dynamic class loading)
 -keep class org.mozilla.javascript.** { *; }
 -dontwarn org.mozilla.javascript.**
--keep class org.python.** { *; }
--dontwarn org.python.**
 -keep class org.luaj.** { *; }
 -dontwarn org.luaj.**
 -keep class bsh.** { *; }

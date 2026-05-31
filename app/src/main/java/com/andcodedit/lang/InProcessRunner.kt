@@ -7,20 +7,26 @@ import java.io.PrintStream
  * using interpreters bundled in the APK. No Termux, no shell, no external
  * toolchain: these run on the JVM/ART in-process.
  *
- * Supported in-process engines:
- *  - **JavaScript** via Mozilla Rhino (`org.mozilla:rhino`)
- *  - **Python 2.7** via Jython (`org.python:jython-standalone`)
+ * Supported in-process engines (pure interpreters that emit no JVM bytecode, so
+ * they run on Android/ART without a desktop JVM):
+ *  - **JavaScript** via Mozilla Rhino (`org.mozilla:rhino`, interpreted mode)
  *  - **Lua 5.2** via LuaJ (`org.luaj:luaj-jse`)
  *  - **BeanShell** (Java-like scripting) via `bsh`
  *
  * These give the app real, offline, zero-setup execution for several languages,
  * complementing the shell-based [CodeRunner] that handles compiled/native
- * toolchains provisioned through Termux.
+ * toolchains provisioned through Termux. (Python, Ruby, Groovy etc. are not
+ * bundled in-process: their JVM engines generate bytecode at runtime, which ART
+ * cannot load — they run via the Termux toolchain instead.)
  */
 object InProcessRunner {
 
-    /** Language ids this runner can execute without any external toolchain. */
-    val supportedIds: Set<String> = setOf("javascript", "python", "lua", "beanshell")
+    /**
+     * Language ids this runner can execute without any external toolchain.
+     * Pure interpreters only (no runtime bytecode generation) so they work on
+     * Android/ART: JavaScript (Rhino), Lua (LuaJ), BeanShell.
+     */
+    val supportedIds: Set<String> = setOf("javascript", "lua", "beanshell")
 
     fun canRun(languageId: String): Boolean = languageId in supportedIds
 
@@ -28,15 +34,13 @@ object InProcessRunner {
 
     /**
      * Run [code] for [languageId] in-process. Standard output/print is captured
-     * and returned; exceptions become the error text. Heavy interpreters (Jython)
-     * initialise lazily on first use.
+     * and returned; exceptions become the error text.
      */
     fun run(languageId: String, code: String): Result {
         val started = System.currentTimeMillis()
         return try {
             when (languageId) {
                 "javascript" -> runJavaScript(code)
-                "python" -> runPython(code)
                 "lua" -> runLua(code)
                 "beanshell" -> runBeanShell(code)
                 else -> Result("", "In-process execution not supported for '$languageId'.", false, 0)
@@ -80,21 +84,6 @@ object InProcessRunner {
     /** Public so Rhino's reflection-based Java access can reach [log]. */
     class JsConsole(private val sb: StringBuilder) {
         fun log(s: String) { sb.append(s).append('\n') }
-    }
-
-    // ---- Python (Jython) ----
-    private fun runPython(code: String): Result {
-        val interp = org.python.util.PythonInterpreter()
-        val out = java.io.ByteArrayOutputStream()
-        val err = java.io.ByteArrayOutputStream()
-        return interp.use {
-            it.setOut(out)
-            it.setErr(err)
-            it.exec(code)
-            it.cleanup()
-            val e = err.toString("UTF-8")
-            Result(out.toString("UTF-8"), e, e.isBlank(), 0)
-        }
     }
 
     // ---- Lua (LuaJ) ----
