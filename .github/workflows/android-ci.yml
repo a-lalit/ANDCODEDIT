@@ -55,9 +55,9 @@ jobs:
             let log = '';
             try { log = fs.readFileSync('/tmp/build.log', 'utf8'); } catch (e) {}
             const lines = log.split('\n');
-            const errRe = /^e: |error:|FAILURE:|What went wrong|Could not |Unresolved |Duplicate |> Task .*FAILED|Caused by/;
+            const errRe = /^e: |error:|FAILURE:|What went wrong|Could not |Unresolved |Duplicate |> Task .*FAILED|Caused by|issue was found|requires|minCompileSdk|minSdk|dependency|Dependency|compileSdk|AGP|Android Gradle plugin/i;
             let picked = lines.filter(l => errRe.test(l));
-            if (picked.length === 0) picked = lines.slice(-120);
+            if (picked.length === 0) picked = lines.slice(-150);
             const body = "### ❌ assembleDebug failed\n```\n" +
               picked.slice(0, 120).join('\n').slice(0, 60000) + "\n```";
             await github.rest.issues.createComment({
