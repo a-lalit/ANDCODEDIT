@@ -34,7 +34,9 @@ private data class HomeFeature(
 @Composable
 fun HomeScreen(navController: NavHostController, appStateViewModel: AppStateViewModel) {
     val features = listOf(
-        HomeFeature("Editor", "Sora-powered code editing", Icons.Filled.Code, "editor", Color(0xFF4EC9B0)),
+        HomeFeature("Monaco", "Full VS Code editor engine", Icons.Filled.Code, "monaco", Color(0xFF4EC9B0)),
+        HomeFeature("Run Code", "30+ languages on-device", Icons.Filled.PlayArrow, "runner", Color(0xFF6A9955)),
+        HomeFeature("Editor", "Sora-powered editing", Icons.Filled.EditNote, "editor", Color(0xFF4FC1FF)),
         HomeFeature("Terminal", "Real interactive shell", Icons.Filled.Terminal, "terminal", Color(0xFF569CD6)),
         HomeFeature("DEX Mode", "Bytecode & Smali tools", Icons.Filled.Memory, "dex", Color(0xFFC586C0)),
         HomeFeature("AI Agents", "Context-aware assistant", Icons.Filled.AutoAwesome, "ai", Color(0xFFDCDCAA)),

@@ -34,5 +34,17 @@ fun AppNavigation(navController: NavHostController, appStateViewModel: AppStateV
                 appStateViewModel = appStateViewModel
             )
         }
+        composable("monaco") {
+            com.andcodedit.ui.screens.MonacoEditorScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
+        composable("runner") {
+            com.andcodedit.ui.screens.RunnerScreen(
+                navController = navController,
+                appStateViewModel = appStateViewModel
+            )
+        }
     }
 }

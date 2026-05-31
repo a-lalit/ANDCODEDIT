@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AndCode Monaco</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1e1e1e;
+    }
+    #container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+    #status {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      color: #888;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="status">loading editor...</div>
+
+  <script>
+    // ---------------------------------------------------------------------
+    // AndCode Monaco host page.
+    // Loads Monaco from local Android assets when present, otherwise falls
+    // back to a CDN copy. Pure vanilla JS, no build step.
+    // ---------------------------------------------------------------------
+
+    var LOCAL_VS = "vs"; // relative to file:///android_asset/monaco/  -> .../monaco/vs
+    var CDN_VS = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
+
+    var editor = null;
+    var pendingInit = null; // { text, language } queued before editor exists
+    var suppressChange = false;
+
+    function setStatus(msg) {
+      var el = document.getElementById("status");
+      if (el) el.textContent = msg || "";
+    }
+
+    function safeBridge() {
+      try { return window.AndCodeBridge || null; } catch (e) { return null; }
+    }
+
+    // Load the AMD loader.js from a base path, calling onload/onerror.
+    function loadLoaderScript(basePath, onload, onerror) {
+      var s = document.createElement("script");
+      s.src = basePath + "/loader.js";
+      s.onload = onload;
+      s.onerror = onerror;
+      document.head.appendChild(s);
+    }
+
+    // Try local assets first; on failure fall back to the CDN.
+    function bootstrap() {
+      setStatus("loading monaco (local)...");
+      loadLoaderScript(LOCAL_VS, function () {
+        startMonaco(LOCAL_VS);
+      }, function () {
+        setStatus("local monaco missing, loading from CDN...");
+        loadLoaderScript(CDN_VS, function () {
+          startMonaco(CDN_VS);
+        }, function () {
+          setStatus("ERROR: failed to load Monaco from local assets and CDN.");
+        });
+      });
+    }
+
+    function startMonaco(vsPath) {
+      try {
+        require.config({ paths: { vs: vsPath } });
+
+        // Some CDN/local builds need the worker shim; Monaco can run on the
+        // main thread without web workers if this is provided.
+        window.MonacoEnvironment = {
+          getWorkerUrl: function () {
+            var encoded =
+              "self.MonacoEnvironment = { baseUrl: '" + vsPath + "/' };" +
+              "importScripts('" + vsPath + "/base/worker/workerMain.js');";
+            return "data:text/javascript;charset=utf-8," + encodeURIComponent(encoded);
+          }
+        };
+
+        require(["vs/editor/editor.main"], function () {
+          createEditor();
+        });
+      } catch (e) {
+        setStatus("ERROR starting Monaco: " + e);
+      }
+    }
+
+    function createEditor() {
+      editor = monaco.editor.create(document.getElementById("container"), {
+        value: "",
+        language: "plaintext",
+        theme: "vs-dark",
+        automaticLayout: true,
+        fontSize: 14,
+        minimap: { enabled: true },
+        scrollBeyondLastLine: false,
+        wordWrap: "off",
+        tabSize: 4,
+        renderWhitespace: "selection"
+      });
+
+      setStatus("");
+
+      // Content change -> Android
+      editor.onDidChangeModelContent(function () {
+        if (suppressChange) return;
+        var value = editor.getValue();
+        var b = safeBridge();
+        if (b && b.onContentChanged) {
+          try { b.onContentChanged(value); } catch (e) {}
+        }
+      });
+
+      // Cursor position -> Android
+      editor.onDidChangeCursorPosition(function (e) {
+        var pos = e.position;
+        var b = safeBridge();
+        if (b && b.onCursor) {
+          try { b.onCursor(pos.lineNumber, pos.column); } catch (e2) {}
+        }
+      });
+
+      // Apply any payload that arrived before the editor existed.
+      if (pendingInit) {
+        applyInit(pendingInit.text, pendingInit.language);
+        pendingInit = null;
+      }
+
+      var b = safeBridge();
+      if (b && b.onEditorReady) {
+        try { b.onEditorReady(); } catch (e) {}
+      }
+    }
+
+    function applyInit(text, language) {
+      if (!editor) {
+        pendingInit = { text: text, language: language };
+        return;
+      }
+      suppressChange = true;
+      try {
+        editor.setValue(text != null ? text : "");
+        if (language) {
+          monaco.editor.setModelLanguage(editor.getModel(), language);
+        }
+      } finally {
+        suppressChange = false;
+      }
+    }
+
+    // Called by Kotlin once the bridge has signalled readiness, to push the
+    // initial document and language.
+    window.__initEditor = function (text, language) {
+      applyInit(text, language);
+    };
+
+    // ---------------------------------------------------------------------
+    // Public JS API consumed by the Kotlin bridge.
+    // ---------------------------------------------------------------------
+    window.AndCodeMonaco = {
+      setValue: function (text) {
+        if (!editor) { pendingInit = { text: text, language: (pendingInit && pendingInit.language) || null }; return; }
+        var sel = editor.getSelection();
+        suppressChange = true;
+        try { editor.setValue(text != null ? text : ""); } finally { suppressChange = false; }
+        if (sel) { try { editor.setSelection(sel); } catch (e) {} }
+      },
+      getValue: function () {
+        return editor ? editor.getValue() : "";
+      },
+      setLanguage: function (lang) {
+        if (editor && lang) {
+          monaco.editor.setModelLanguage(editor.getModel(), lang);
+        } else if (!editor) {
+          pendingInit = { text: (pendingInit && pendingInit.text) || "", language: lang };
+        }
+      },
+      setTheme: function (theme) {
+        if (typeof monaco !== "undefined" && monaco.editor) {
+          monaco.editor.setTheme(theme || "vs-dark");
+        }
+      },
+      format: function () {
+        if (editor) {
+          var action = editor.getAction("editor.action.formatDocument");
+          if (action) action.run();
+        }
+      },
+      undo: function () {
+        if (editor) editor.trigger("andcode", "undo", null);
+      },
+      redo: function () {
+        if (editor) editor.trigger("andcode", "redo", null);
+      },
+      insert: function (text) {
+        if (editor) {
+          var selection = editor.getSelection();
+          editor.executeEdits("andcode-insert", [{
+            range: selection,
+            text: text != null ? text : "",
+            forceMoveMarkers: true
+          }]);
+          editor.focus();
+        }
+      },
+      setFontSize: function (px) {
+        if (editor) editor.updateOptions({ fontSize: px });
+      },
+      goToLine: function (n) {
+        if (editor) {
+          editor.revealLineInCenter(n);
+          editor.setPosition({ lineNumber: n, column: 1 });
+          editor.focus();
+        }
+      }
+    };
+
+    bootstrap();
+  </script>
+</body>
+</html>
