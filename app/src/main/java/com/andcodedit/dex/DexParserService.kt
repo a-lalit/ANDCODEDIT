@@ -95,7 +95,7 @@ class DexParserService {
         append(".class ${classDef.accessFlags.toString(16)} ${classDef.type}\n")
         append(".super ${classDef.superclass ?: "Ljava/lang/Object;"}\n\n")
         classDef.methods.forEach { m ->
-            val params = m.parameterTypes.joinToString("")
+            val params = m.parameters.joinToString("") { it.type }
             append(".method ${m.name}($params)${m.returnType}\n")
             append("    .registers ${m.implementation?.registerCount ?: 0}\n")
             append("    # method body\n")
