@@ -38,6 +38,18 @@ jobs:
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --console=plain 2>&1 | tee /tmp/build.log
 
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --stacktrace --console=plain 2>&1 | tee -a /tmp/build.log
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/testDebugUnitTest
+
       - name: Summarize build errors
         if: failure()
         run: |
