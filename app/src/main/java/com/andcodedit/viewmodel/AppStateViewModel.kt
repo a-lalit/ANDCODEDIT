@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.andcodedit.ai.AiAgentService
 import com.andcodedit.git.GitService
 import com.andcodedit.terminal.TerminalGrid
+import com.andcodedit.terminal.TerminalSession
 import com.andcodedit.terminal.TerminalSessionFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +19,10 @@ import kotlinx.coroutines.launch
  * Uses SavedStateHandle for config change survival.
  * Full working implementation.
  */
-class AppStateViewModel(
-    private val savedStateHandle: SavedStateHandle
+class AppStateViewModel @JvmOverloads constructor(
+    private val savedStateHandle: SavedStateHandle,
+    private val sessionFactory: (rows: Int, cols: Int, shell: String, onOutput: (ByteArray) -> Unit) -> TerminalSession =
+        { rows, cols, shell, onOutput -> TerminalSessionFactory.create(rows, cols, shell, onOutput) }
 ) : ViewModel() {
 
     // Editor tabs state (persisted)
@@ -34,8 +37,8 @@ class AppStateViewModel(
     val currentEditorTab: StateFlow<Int> = _currentEditorTab.asStateFlow()
 
     // Terminal sessions (multiple tabs)
-    private val _terminalSessions = MutableStateFlow<List<com.andcodedit.terminal.TerminalSession>>(emptyList())
-    val terminalSessions: StateFlow<List<com.andcodedit.terminal.TerminalSession>> = _terminalSessions.asStateFlow()
+    private val _terminalSessions = MutableStateFlow<List<TerminalSession>>(emptyList())
+    val terminalSessions: StateFlow<List<TerminalSession>> = _terminalSessions.asStateFlow()
 
     private val _terminalGrids = MutableStateFlow<List<TerminalGrid>>(emptyList())
     val terminalGrids: StateFlow<List<TerminalGrid>> = _terminalGrids.asStateFlow()
@@ -132,11 +135,9 @@ class AppStateViewModel(
     // Terminal functions (multiple tabs + splits ready)
     fun createNewTerminalTab() {
         val newGrid = TerminalGrid(initialRows = 30, initialCols = 100)
-        val newSession = TerminalSessionFactory.create(
-            rows = 30,
-            cols = 100,
-            onOutput = { data -> newGrid.appendOutput(data) }
-        )
+        val newSession = sessionFactory(30, 100, _terminalShell.value) { data ->
+            newGrid.appendOutput(data)
+        }
         _terminalGrids.value = _terminalGrids.value + newGrid
         _terminalSessions.value = _terminalSessions.value + newSession
         _currentTerminalTab.value = _terminalSessions.value.lastIndex
@@ -152,7 +153,7 @@ class AppStateViewModel(
         if (_terminalSessions.value.size > 1) {
             val newSessions = _terminalSessions.value.toMutableList()
             val newGrids = _terminalGrids.value.toMutableList()
-            newSessions.removeAt(index)
+            newSessions.removeAt(index).close()
             newGrids.removeAt(index)
             _terminalSessions.value = newSessions
             _terminalGrids.value = newGrids
@@ -176,14 +177,13 @@ class AppStateViewModel(
     }
 
     // AI integration
-    fun queryAI(query: String, terminalSession: com.andcodedit.terminal.TerminalSession? = null): String {
+    fun queryAI(query: String, terminalSession: TerminalSession? = null): String {
         return aiService.processAgentQuery(query, terminalSession)
     }
 
     override fun onCleared() {
         super.onCleared()
-        // Cleanup sessions if needed
-        _terminalSessions.value.forEach { /* close if real PTY */ }
+        _terminalSessions.value.forEach { it.close() }
         gitService.close()
     }
 }

@@ -7,7 +7,30 @@ import java.io.OutputStream
 import kotlin.concurrent.thread
 
 /**
- * TerminalSession — a real, interactive shell session.
+ * A live, interactive terminal session the UI can write keystrokes to.
+ *
+ * Implemented today by [ProcessTerminalSession] (plain [ProcessBuilder] shell);
+ * a PTY-backed implementation (Rust `portable-pty` via UniFFI) can be swapped
+ * in through [TerminalSessionFactory] without touching call sites.
+ */
+@Stable
+interface TerminalSession {
+    val rows: Int
+    val cols: Int
+
+    /** Send keystrokes / a command line to the shell. */
+    fun writeInput(data: ByteArray)
+
+    /** Record a new viewport size. */
+    fun resize(rows: Int, cols: Int)
+
+    fun isAlive(): Boolean
+
+    fun close()
+}
+
+/**
+ * ProcessTerminalSession — a real, interactive shell session.
  *
  * This implementation spawns the system shell with [ProcessBuilder] and streams
  * its merged stdout/stderr back to the caller on a dedicated reader thread.
@@ -21,18 +44,18 @@ import kotlin.concurrent.thread
  * API below is intentionally identical so callers do not change.
  */
 @Stable
-class TerminalSession internal constructor(
+class ProcessTerminalSession internal constructor(
     rows: Int,
     cols: Int,
     shell: String,
     private val onOutput: (ByteArray) -> Unit
-) {
+) : TerminalSession {
     @Volatile
-    var rows: Int = rows
+    override var rows: Int = rows
         private set
 
     @Volatile
-    var cols: Int = cols
+    override var cols: Int = cols
         private set
 
     @Volatile
@@ -78,8 +101,7 @@ class TerminalSession internal constructor(
         }
     }
 
-    /** Send keystrokes / a command line to the shell. */
-    fun writeInput(data: ByteArray) {
+    override fun writeInput(data: ByteArray) {
         if (!alive) return
         try {
             stdin.write(data)
@@ -89,17 +111,17 @@ class TerminalSession internal constructor(
         }
     }
 
-    /** Record a new viewport size. Reported to the shell via env on next program. */
-    fun resize(rows: Int, cols: Int) {
+    /** Reported to the shell via env on the next program. */
+    override fun resize(rows: Int, cols: Int) {
         this.rows = rows
         this.cols = cols
         // Best-effort: many programs re-read COLUMNS/LINES; a real PTY would
         // deliver SIGWINCH which the Rust core handles.
     }
 
-    fun isAlive(): Boolean = alive && process.isAlive
+    override fun isAlive(): Boolean = alive && process.isAlive
 
-    fun close() {
+    override fun close() {
         alive = false
         try {
             stdin.close()
@@ -133,5 +155,5 @@ object TerminalSessionFactory {
         cols: Int = 100,
         shell: String = "/system/bin/sh",
         onOutput: (ByteArray) -> Unit
-    ): TerminalSession = TerminalSession(rows, cols, shell, onOutput)
+    ): TerminalSession = ProcessTerminalSession(rows, cols, shell, onOutput)
 }

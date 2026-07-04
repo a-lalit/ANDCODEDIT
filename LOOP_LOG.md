@@ -45,3 +45,21 @@ Running log of the Loop Protocol execution. Newest loop last.
   - `AppStateViewModel` is not unit-testable as-is: its `init` block spawns a live shell `Process` via `TerminalSessionFactory` (fails on a plain JVM). Loop 3 (architecture triage) should inject the factory so tab logic can be tested without a process.
   - `DiagnosticsManager.applyDiagnostics` needs a `CodeEditor` (Android widget) — covered later via instrumentation or by extracting the offset math.
 - **Next loop:** Loop 3 — architecture triage (Room dead code, DataStore, terminal-session injection, `ExpandedDesktopLayout` reachability).
+
+---
+
+## Loop 3 — Architecture triage: testable terminal seam + lifecycle hygiene
+- **Objective:** `AppStateViewModel` becomes unit-testable (no live process spawned on construction in tests), terminal sessions are properly closed, and the audit's architecture questions get explicit dispositions.
+- **Files touched:**
+  - `app/.../terminal/TerminalSession.kt` — `TerminalSession` is now an interface (`rows`, `cols`, `writeInput`, `resize`, `isAlive`, `close`); the ProcessBuilder implementation is renamed `ProcessTerminalSession`. `TerminalSessionFactory.create` keeps its exact signature, so no call site changed. This is also the seam the Loop 9 Rust-PTY implementation plugs into.
+  - `app/.../viewmodel/AppStateViewModel.kt` — session construction goes through an injectable `sessionFactory` (defaulting to `TerminalSessionFactory`, `@JvmOverloads` so the framework's `SavedStateHandle` constructor still resolves); the configured `terminalShell` preference is now actually passed to new sessions; `closeTerminalTab` and `onCleared` now close sessions (previously leaked processes).
+  - `app/src/test/java/com/andcodedit/viewmodel/AppStateViewModelTest.kt` — 13 tests with a `FakeTerminalSession`: editor-tab add/dedupe/close/switch bounds, terminal-tab lifecycle incl. session close, layout/pref clamping, SavedStateHandle persistence.
+  - `app/build.gradle.kts` — `kotlinx-coroutines-test` (test only).
+- **Architecture dispositions (recorded, not guessed):**
+  - **Room (`data/`)**: currently zero call sites. KEEP — Loop 4 wires it for workspace/recent-project persistence; will delete then if a better fit (DataStore) wins.
+  - **`ExpandedDesktopLayout`**: audit said unreachable — that was wrong; it is used by `MainActivity` and `EditorScreen`. Stays; DeX polish lands in a later loop.
+  - **Single `AppStateViewModel`**: kept (matches existing pattern); refactor only if a loop actually needs feature-scoped VMs.
+- **Build result:** `./gradlew assembleDebug testDebugUnitTest` **SUCCESSFUL**.
+- **Test result:** **35 tests, 0 failures** (13 new).
+- **Issues found and resolved:** terminal `Process` leaked on tab close and on ViewModel clear — fixed by closing sessions.
+- **Next loop:** Loop 4 — project/workspace management (SAF folder open, recents, persistence).
