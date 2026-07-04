@@ -23,7 +23,7 @@ fun AppNavigation(navController: NavHostController, appStateViewModel: AppStateV
             com.andcodedit.ui.screens.TerminalScreen(navController = navController, appStateViewModel = appStateViewModel)
         }
         composable("dex") {
-            DexModeScreen(navController = navController, appStateViewModel = appStateViewModel)
+            DexModeScreen(navController = navController)
         }
         composable("ai") {
             AIChatScreen(navController = navController, appStateViewModel = appStateViewModel)

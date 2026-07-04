@@ -14,8 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.andcodedit.dex.DexParserService
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -29,6 +31,7 @@ fun DexModeScreen(navController: NavController) {
     val parser = remember { DexParserService() }
     var filePath by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Real SAF file picker for APK/DEX
     val openDexLauncher = rememberLauncherForActivityResult(
@@ -117,7 +120,7 @@ fun DexModeScreen(navController: NavController) {
                                         fontFamily = FontFamily.Monospace
                                     )
                                     Text(
-                                        "${classDef.methods.size} methods",
+                                        "${classDef.methods.count()} methods",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -198,7 +201,7 @@ fun DexModeScreen(navController: NavController) {
                                 // 2. Use dexlib2 to create new DexFile from classes
                                 // 3. Replace DEX in APK using Zip
                                 // 4. Re-sign with apksigner if needed
-                                LaunchedEffect(success) {
+                                scope.launch {
                                     snackbarHostState.showSnackbar(
                                         if (success) "Reassembled & saved (full smali integration ready)"
                                         else "Reassemble failed - check logs"
