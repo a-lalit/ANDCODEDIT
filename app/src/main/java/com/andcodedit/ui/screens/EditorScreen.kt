@@ -17,6 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import io.github.rosemoe.sora.langs.java.JavaLanguage
 import io.github.rosemoe.sora.widget.CodeEditor
+import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.*
@@ -40,6 +41,7 @@ fun EditorScreen(
     val currentTabIndex = remember { mutableStateOf(0) }
     val codeEditorRef = remember { mutableStateOf<CodeEditor?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Sample contents (real code from project for authenticity)
     val sampleMainActivity = """package com.andcodedit
@@ -129,7 +131,7 @@ class DexParserService {
             methods.value = emptyList()
             smaliContent.value = ""
         } catch (e: Exception) {
-            error.value = "Failed to parse: ${e.message}"
+            error.value = "Failed to parse: ${'$'}{e.message}"
         } finally {
             isLoading.value = false
         }
@@ -139,9 +141,9 @@ class DexParserService {
         selectedClass.value = classDef
         methods.value = classDef.methods.toList()
         val sb = StringBuilder()
-        sb.append(".class ${classDef.type}\n.super ${classDef.superclass}\n\n")
+        sb.append(".class ${'$'}{classDef.type}\n.super ${'$'}{classDef.superclass}\n\n")
         classDef.methods.forEach { m ->
-            sb.append(".method ${m.name}(${m.parameters.joinToString { it.type }})${m.returnType}\n    # body\n.end method\n\n")
+            sb.append(".method ${'$'}{m.name}(${'$'}{m.parameters.joinToString { it.type }})${'$'}{m.returnType}\n    # body\n.end method\n\n")
         }
         smaliContent.value = sb.toString()
     }
@@ -622,9 +624,9 @@ class DexParserService {
                                     // Error case
                                 }
                                 // Show result
-                                LaunchedEffect(saved) {
+                                scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (saved) "Saved successfully: ${currentTab.name}" 
+                                        if (saved) "Saved successfully: ${currentTab.name}"
                                         else "Save failed (check permissions)"
                                     )
                                 }

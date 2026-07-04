@@ -51,7 +51,7 @@ object DiagnosticsManager {
             } catch (e: Exception) {
                 return@forEach
             }
-            val total = content.length()
+            val total = content.length
             val end = (start + diag.length).coerceAtMost(total)
             container.addDiagnostic(
                 DiagnosticRegion(

@@ -55,7 +55,7 @@ class AiAgentService {
                 // Simple similarity
                 val docVec = embeddings[id] ?: return@forEach
                 val sim = cosineSimilarity(queryVec, docVec)
-                if (sim > 0.3f) results.add("$content (sim: ${'%.2f'.format(sim)})")
+                if (sim > 0.3f) results.add("$content (sim: ${"%.2f".format(sim)})")
             }
         }
         _ragResults.value = results.take(5)
