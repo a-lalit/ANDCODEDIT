@@ -95,6 +95,48 @@ class MonacoController {
 fun rememberMonacoController(): MonacoController = remember { MonacoController() }
 
 /**
+ * JS -> Kotlin bridge registered as `AndCodeBridge`. Must be a named class so
+ * the @JavascriptInterface annotations are visible to the WebView runtime.
+ */
+private class MonacoBridge(
+    private val controller: MonacoController,
+    private val initialText: String,
+    private val language: String,
+    private val onContentChange: (String) -> Unit,
+    private val onCursorMoved: (Int, Int) -> Unit
+) {
+    @JavascriptInterface
+    fun onEditorReady() {
+        val wv = controller.webView ?: return
+        val text = JSONObject.quote(initialText)
+        val lang = JSONObject.quote(language)
+        wv.post {
+            wv.evaluateJavascript("window.__initEditor($text, $lang);", null)
+        }
+    }
+
+    @JavascriptInterface
+    fun onContentChanged(value: String) {
+        val wv = controller.webView
+        if (wv != null) {
+            wv.post { onContentChange(value) }
+        } else {
+            onContentChange(value)
+        }
+    }
+
+    @JavascriptInterface
+    fun onCursor(line: Int, col: Int) {
+        val wv = controller.webView
+        if (wv != null) {
+            wv.post { onCursorMoved(line, col) }
+        } else {
+            onCursorMoved(line, col)
+        }
+    }
+}
+
+/**
  * Composable wrapping a [WebView] that hosts the Monaco editor from
  * `file:///android_asset/monaco/editor.html`.
  *
@@ -106,7 +148,9 @@ fun rememberMonacoController(): MonacoController = remember { MonacoController()
  * The [initialText] / [language] are pushed into the editor once it signals
  * readiness through `onEditorReady()`.
  */
-@SuppressLint("SetJavaScriptEnabled")
+// JavascriptInterface is a lint false positive: MonacoBridge's methods are all
+// annotated, but lint cannot resolve the type through `remember`'s generic.
+@SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
 @Composable
 fun MonacoEditor(
     initialText: String,
@@ -120,38 +164,8 @@ fun MonacoEditor(
 
     // Bridge object exposed to JS. Methods may be invoked on a non-UI thread,
     // so callbacks are marshalled back onto the WebView's thread.
-    val bridge = remember(controller) {
-        object {
-            @JavascriptInterface
-            fun onEditorReady() {
-                val wv = controller.webView ?: return
-                val text = JSONObject.quote(initialText)
-                val lang = JSONObject.quote(language)
-                wv.post {
-                    wv.evaluateJavascript("window.__initEditor($text, $lang);", null)
-                }
-            }
-
-            @JavascriptInterface
-            fun onContentChanged(value: String) {
-                val wv = controller.webView
-                if (wv != null) {
-                    wv.post { onContentChange(value) }
-                } else {
-                    onContentChange(value)
-                }
-            }
-
-            @JavascriptInterface
-            fun onCursor(line: Int, col: Int) {
-                val wv = controller.webView
-                if (wv != null) {
-                    wv.post { onCursor(line, col) }
-                } else {
-                    onCursor(line, col)
-                }
-            }
-        }
+    val bridge: MonacoBridge = remember(controller) {
+        MonacoBridge(controller, initialText, language, onContentChange, onCursor)
     }
 
     AndroidView(
